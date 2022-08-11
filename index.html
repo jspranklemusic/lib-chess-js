@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        .board {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(8, 1fr);;
+            width: 500px;
+            height: 500px;
+            direction: rtl;
+            border: 1px solid black;
+        }
+        .board .square {
+            box-sizing: border-box;
+            border: 1px solid black;
+            display: grid;
+            justify-content: center;
+            align-items: center;
+            font-size: 3rem;
+            background: rgb(244, 243, 229);
+        }
+
+        .board .square > * {
+            color: black;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .board .square.selected > * {
+            color: red;
+        }
+
+        .board .square.filled {
+            background: rgb(124, 193, 124);
+        }
+
+
+    </style>
+    <title>Document</title>
+    <div class="board">
+
+    </div>
+</head>
+<body>
+    <script type="module" src="chess.js"></script>
+</body>
+</html>
