@@ -54,6 +54,7 @@ class Board {
     currentAttackedSquares = [];
     currentLegalMoves = [];
     enPassantIndex = null;
+    move50counter = 0;
     gameover = false;
 
     constructor(){
@@ -210,18 +211,49 @@ class Board {
         return moves;
     }
 
+    drawByRepetition(){
+        let foundPositions = 0;
+        this.positions.forEach(position => {
+            if(position.every((value, index) => value === this.current[index])){
+                foundPositions++;
+            }
+        })
+        if(foundPositions >= 3){
+            return true;
+        }
+    }
 
+    // after a completed legal move, set the game state/variables for the next turn, check game-ending conditions
     setState(oldIndex, newIndex){
         this.setRooksMoved();
         this.setKingsMoved();
-        this.currentAttackedSquares = this.getTotalAttackedSquares(!this.whiteToMove());
-        this.currentLegalMoves = this.getLegalMoves(this.whiteToMove());
-        if(!this.currentLegalMoves.length && this.isCheck()){
-            alert("checkmate!");
+        const whiteToMove = this.whiteToMove();
+        this.currentAttackedSquares = this.getTotalAttackedSquares(!whiteToMove);
+        this.currentLegalMoves = this.getLegalMoves(whiteToMove);
+        if(!this.currentLegalMoves.length){
+            // find checkmate
+            if(this.isCheck()){
+                alert("checkmate!");
+                this.gameover = true;
+            // find stalemate
+            }else{
+                alert("stalemate");
+                this.gameover = true;
+            }
+        }
+        // find draw by 50 move
+        if(this.move50counter >= 50){
+            alert("draw by 50 move rule");
+            this.gameover = true;
+        }
+        // find draw by 3 move repetition
+        if(this.drawByRepetition()){
+            alert("draw by repetition");
             this.gameover = true;
         }
     }
 
+    // get additional, non-base legal moves such as castling and en passant
     appendAuxiliaryMoves(index,array){
         // castling
         if(index == this.whiteKingPosition | index == this.blackKingPosition){
@@ -251,6 +283,7 @@ class Board {
         return moves;
     }
 
+    // make sure the move can proceed
     validateState(indexA, indexB){
         // find check
         return (
@@ -258,6 +291,7 @@ class Board {
         )
     }
 
+    // make sure that the basic move is legal for the piece
     validateBaseMove(indexA, indexB){
         const whiteToMove = this.whiteToMove();
         const piece = this.current[indexA];
@@ -344,6 +378,16 @@ class Board {
             }
         }
     }
+    // check for a pawn move or a capture to reset to 0, otherwise increment by 1
+    setMove50Counter(indexA, indexB){
+        const conditions = ((
+            this.current[indexB] > 0 && 
+            Utils.equalColors(this.current[indexA],this.current[indexB])) | 
+            (this.current[indexA] == pieces.P || 
+            this.current[indexA] == pieces.p)
+        );
+        this.move50counter = conditions ? 0 : this.move50counter + 1;
+    }
 
     // set the new piece position on the board, push it to the move history
     setPosition(indexA, indexB){
@@ -358,6 +402,7 @@ class Board {
         if(this.validateBaseMove(indexA, indexB)){
             if(this.tryMove(indexA,indexB)){
                 this.setAuxiliaryPieces(indexA, indexB, promotion);
+                this.setMove50Counter(indexA, indexB);
                 this.setPosition(indexA,indexB);
                 this.setState(indexA, indexB);
             }
