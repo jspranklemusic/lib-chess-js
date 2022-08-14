@@ -5,6 +5,8 @@ export const cols = ['A','B','C','D','E','F','G','H'];
 export const rows = ['1','2','3','4','5','6','7','8'];
 export const pieces = {};
 
+window.pieces = pieces;
+
 // construct 2-way hash map with letters and ascii values
 for(let i = 65; i <= 90; i++){
   pieces[i] = String.fromCharCode(i);
@@ -33,13 +35,26 @@ export const unicodeCharMap = {
 
 class Board {
 
+     // an array of all of the previous positions, starting from #1
     positions = [];
-    whiteKingMoved = false;
-    blackKingMoved = false;
+    // a copy of the default game position when it is setup
+    default = []; 
+    // for white castling legality
+    whiteKingMoved = false; 
     A1RookMoved = false;
-    A8RookMoved = false;
     H1RookMoved = false;
+    // for black castling legality
+    blackKingMoved = false; 
+    A8RookMoved = false;
     H8RookMoved = false;
+    // manually keep track of kings to avoid searching the board for checkmate
+    whiteKingPosition = -1; 
+    blackKingPosition = -1;
+    // at the start of each turn, get all fo the current base moves for easier state checking
+    currentAttackedSquares = [];
+    currentLegalMoves = [];
+    enPassantIndex = null;
+    gameover = false;
 
     constructor(){
         const board = new Uint8Array(64);
@@ -63,7 +78,9 @@ class Board {
         board[5] = pieces.B;
         board[4] = pieces.K;
         board[3] = pieces.Q;
-    
+
+        this.whiteKingPosition = 4;
+
         //make black pieces
         board[0+56] = pieces.r;
         board[7+56] = pieces.r;
@@ -74,31 +91,174 @@ class Board {
         board[4+56] = pieces.k;
         board[3+56] = pieces.q;
 
-        this.current = board;
-        this.positions.push([...board]);
+        this.blackKingPosition = 4+56;
 
         // make map to automatically call correct function based on index
         this.pieceMoveFunctionMap = {
-            p: (index)=> Moves.pawn.getMoves(board, index),
-            P: (index)=> Moves.pawn.getMoves(board, index),
-            k: (index)=> Moves.king.getMoves(board, index),
-            K: (index)=> Moves.king.getMoves(board, index),
-            r: (index)=> Moves.rook.getMoves(board, index),
-            R: (index)=> Moves.rook.getMoves(board, index),
-            n: (index)=> Moves.knight.getMoves(board, index),
-            N: (index)=> Moves.knight.getMoves(board, index),
-            q: (index)=> Moves.queen.getMoves(board, index),
-            Q: (index)=> Moves.queen.getMoves(board, index),
-            b: (index)=> Moves.bishop.getMoves(board, index),
-            B: (index)=> Moves.bishop.getMoves(board, index),
+            k: (index,attack=false)=> Moves.king.getMoves(board, index, attack),
+            K: (index,attack=false)=> Moves.king.getMoves(board, index, attack),
+            p: (index,attack=false)=> Moves.pawn.getMoves(board, index, attack),
+            P: (index,attack=false)=> Moves.pawn.getMoves(board, index, attack),
+            r: (index,attack=false)=> Moves.rook.getMoves(board, index, attack),
+            R: (index,attack=false)=> Moves.rook.getMoves(board, index, attack),
+            n: (index,attack=false)=> Moves.knight.getMoves(board, index, attack),
+            N: (index,attack=false)=> Moves.knight.getMoves(board, index, attack),
+            q: (index,attack=false)=> Moves.queen.getMoves(board, index, attack),
+            Q: (index,attack=false)=> Moves.queen.getMoves(board, index, attack),
+            b: (index,attack=false)=> Moves.bishop.getMoves(board, index, attack),
+            B: (index,attack=false)=> Moves.bishop.getMoves(board, index, attack),
         };
+
+           // the 'this.current' variable is the current board position
+           this.current = board;
+           this.default = [...board];
+           this.positions.push([...board]);
+           this.setState();
     }
 
+    // checks if white to move
     whiteToMove(){
         return this.positions.length%2;
     }
+    
+    // get the total number of base moves to find check/stalemate/checkmate
+    getTotalBaseMoves(white=true){
+        const moves = [];
+        this.current.forEach((piece,i) => {
+            if(piece > 0 && Utils.isWhite(piece) == white){
+                moves.push([i,this.pieceMoveFunctionMap[pieces[piece]](i)]);
+            }
+        })
+        return moves;
+    }
+    // return moves that aren't necessarily legal, but would prevent a king from moving into them
+    getTotalAttackedSquares(isWhite=true){
+        const moves = [];
+        this.current.forEach((piece,i) => {
+            if(piece > 0 && Utils.isWhite(piece) == isWhite){
+                const thisAttackMoves = this.pieceMoveFunctionMap[pieces[piece]](i,true);
+                moves.push(...thisAttackMoves);
+            }
+        })
+        return moves;
+    }
 
-    validateMove(indexA, indexB){
+    // maybe come back and loop in reverse if black
+    isCheck(){
+        const whiteToMove = this.whiteToMove();
+        const kingPosition = whiteToMove ? this.whiteKingPosition : this.blackKingPosition;
+        for(let i = 0; i < this.current.length; i++){
+            const piece = this.current[i];
+            if(piece > 0 && Utils.isWhite(piece) != whiteToMove){
+                const moves = this.pieceMoveFunctionMap[pieces[piece]](i,true);
+                if(moves.includes(kingPosition)){
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+    // check to see if kings moved from E1(4) or E8(60) by comparing current & default boards
+    setKingsMoved(){
+        if(!this.blackKingMoved && this.default[60] != this.current[60]){
+            this.blackKingMoved = true;
+        }
+        else if(!this.whiteKingMoved && this.default[4] != this.current[4]){
+            this.whiteKingMoved = true;
+        }
+    }
+
+    // check to see if the rooks have moved by comparing the current & default boards
+    setRooksMoved(){
+        const rookSquares = [7,63,0,56]; //H1, H8, A1, A8
+        rookSquares.forEach(index =>{
+            if( !this[Utils.numToAlpha(index) +"RookMoved"] ){
+                if(this.default[index] != this.current[index]){
+                    this[Utils.numToAlpha(index) +"RookMoved"] = true;
+                }
+            }
+        })
+    }
+
+    // returns an array of legal moves if a king can castle
+    getCastleMoves(){
+        const kingMoved = this.whiteToMove() ? this.whiteKingMoved : this.blackKingMoved;
+        if(kingMoved) return [];
+        const offset = this.whiteToMove() ? 0 : 56; 
+        const rank = this.whiteToMove() ? "1" : "8";
+        const moves = [];
+        if( 
+            !this[`H${rank}RookMoved`] && 
+            !this.current[5+offset] &&
+            !this.current[6+offset] && 
+            !this.currentAttackedSquares.includes(5+offset) &&
+            !this.currentAttackedSquares.includes(6+offset)
+        ){
+            moves.push(6+offset);
+        }
+        if(
+            !this[`A${rank}RookMoved`] && 
+            !this.current[3+offset] &&
+            !this.current[2+offset] && 
+            !this.current[1+offset] && 
+            !this.currentAttackedSquares.includes(3+offset) &&
+            !this.currentAttackedSquares.includes(2+offset)
+        ){
+            moves.push(2+offset);
+        }
+        
+        return moves;
+    }
+
+
+    setState(oldIndex, newIndex){
+        this.setRooksMoved();
+        this.setKingsMoved();
+        this.currentAttackedSquares = this.getTotalAttackedSquares(!this.whiteToMove());
+        this.currentLegalMoves = this.getLegalMoves(this.whiteToMove());
+        if(!this.currentLegalMoves.length && this.isCheck()){
+            alert("checkmate!");
+            this.gameover = true;
+        }
+    }
+
+    appendAuxiliaryMoves(index,array){
+        // castling
+        if(index == this.whiteKingPosition | index == this.blackKingPosition){
+            array.push(...this.getCastleMoves())
+        }
+        // en passant
+        const pawn = this.whiteToMove() ? pieces.P : pieces.p;
+        const offset = this.whiteToMove() ? 8 : -8;
+        if(this.enPassantIndex && this.current[index] == pawn){
+            if(index + 1 == this.enPassantIndex | index - 1 == this.enPassantIndex){
+                array.push(this.enPassantIndex + offset);
+            }
+        }
+    }
+
+    // very slow - will need to do something else eventually when I write an AI. this also appends auxiliary moves
+    getLegalMoves(){
+        const moves = [];
+        const movesWithIndex = this.getTotalBaseMoves(this.whiteToMove());
+        movesWithIndex.forEach(array=>{
+            const legal = array[1].filter(move=>this.tryMove(array[0],move));
+            this.appendAuxiliaryMoves(array[0],legal)
+            if(legal.length){
+                moves.push([array[0],legal])
+            }
+        });
+        return moves;
+    }
+
+    validateState(indexA, indexB){
+        // find check
+        return (
+            !this.isCheck()
+        )
+    }
+
+    validateBaseMove(indexA, indexB){
         const whiteToMove = this.whiteToMove();
         const piece = this.current[indexA];
         if(!piece){
@@ -109,19 +269,98 @@ class Board {
             console.log(whiteToMove ? "It is white's move" : "It is black's move");
             return false;
         }
-        if(this.pieceMoveFunctionMap[pieces[piece]](indexA).includes(indexB) ){
-            return true;
-        }else{
-            console.log("Not a valid move.")
-            return false;
+        return this.currentLegalMoves.find(arr=>arr[0] == indexA)[1]?.includes(indexB);
+    }
+
+    // this should not actually alter the state
+    tryMove(indexA,indexB){
+        const move1 = this.current[indexA];
+        const move2 = this.current[indexB];
+        this.current[indexB] = this.current[indexA];
+        this.current[indexA] = 0;
+        if(move1 == pieces.K){
+            this.whiteKingPosition = indexB
+        }
+        else if(move1 == pieces.k){
+            this.blackKingPosition = indexB
+        }
+        const stateValid = this.validateState();
+        this.current[indexA] = move1;
+        this.current[indexB] = move2;
+        if(move1 == pieces.K){
+            this.whiteKingPosition = indexA
+        }
+        else if(move1 == pieces.k){
+            this.blackKingPosition = indexA
+        }
+        return stateValid;
+    }
+
+    // set en passant, rooks after castle, and pawn promotions.
+    setAuxiliaryPieces(indexA, indexB, promotion){
+        this.moveRook(indexA, indexB);
+        this.promotePawn(indexA, indexB, promotion);
+        this.enPassant(indexA, indexB);
+    }
+
+    // handles both setting (and reacting to) en passant   
+    enPassant(indexA, indexB){
+        const pawn = this.whiteToMove() ? pieces.P : pieces.p;
+        const xOffset = this.whiteToMove() ? 8 : -8;
+        if(this.current[indexA] == pawn){
+            if( Math.abs(indexB - indexA) == 16){
+                this.enPassantIndex = indexB;
+                return;
+            }
+            else if(indexB - this.enPassantIndex == xOffset){
+                this.current[this.enPassantIndex] = 0;
+            }
+            this.enPassantIndex = null;
         }
     }
 
-    move(indexA, indexB){
-        if(this.validateMove(indexA, indexB)){
-            this.current[indexB] = this.current[indexA];
-            this.current[indexA] = 0;
-            this.positions.push([...this.current]);
+    // after a legal castle, move the rooks beside the king
+    moveRook(indexA, indexB){
+        const offset = this.whiteToMove() ? 0 : 56;
+        const king = offset ? pieces.k : pieces.K;
+        if(this.current[indexA] == king && indexA == 4+offset){
+            if(indexB == 6 + offset){
+                this.current[5 + offset] = this.current[7 + offset];
+                this.current[7 + offset] = 0;
+            }else if(indexB == 2 + offset){
+                this.current[3 + offset] = this.current[0 + offset];
+                this.current[0 + offset] = 0;
+            }
+        }
+    }
+
+    // replaces the piece at indexA in place with the promoted one
+    promotePawn(indexA, indexB, promotion){
+        const pawn = this.whiteToMove() ? pieces.P : pieces.p;
+        const offset = this.whiteToMove() ? 56 : 0;
+        if(indexB >= (0 + offset) && indexB <= (7 + offset)){
+            if(this.current[indexA] == pawn){
+                this.current[indexA] = promotion
+            }
+        }
+    }
+
+    // set the new piece position on the board, push it to the move history
+    setPosition(indexA, indexB){
+        this.current[indexB] = this.current[indexA];
+        this.current[indexA] = 0;
+        this.positions.push([...this.current]);
+    }
+
+    // this is async so that a player can promote a pawn if available
+    async move(indexA, indexB, promotion = null){
+        if(this.gameover) return;
+        if(this.validateBaseMove(indexA, indexB)){
+            if(this.tryMove(indexA,indexB)){
+                this.setAuxiliaryPieces(indexA, indexB, promotion);
+                this.setPosition(indexA,indexB);
+                this.setState(indexA, indexB);
+            }
         }
         return this.current;
     }

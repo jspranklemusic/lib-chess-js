@@ -1,12 +1,12 @@
 import Utils from "./utils.js";
 import Board, { cols, rows, pieces } from "./board.js";
 
-// These all return the base moves without any special conditions (castle, check, en passant, etc.)
+// These all return the base moves without any special conditions (castle, check, en passant, etc.)q
 class Moves {
-    static get(board, index, baseValues, moveConditions){
+    static get(board, index, baseValues, moveConditions, attack){
         const moves = [];
         baseValues.forEach(newIndex=>{
-            if(moveConditions(index, newIndex, board)){
+            if(moveConditions(index, newIndex, board, attack)){
                 moves.push(newIndex)
             }
         })
@@ -31,6 +31,11 @@ class Moves {
             return false;
         }
     }
+    // same as prev, but also grabs attacked pieces (for king move legality)
+    static continueAttackMovesLoop(i, index, board, moves){
+        moves.push(i);
+        return board[i] == 0;
+    }
     static king = {
         baseValues(index){
             return [
@@ -44,74 +49,76 @@ class Moves {
                 index-1  //left one
             ];
         },
-        moveConditions(index, newIndex, board){
+        moveConditions(index, newIndex, board, attack){
             const piece = board[index]
             return (
                 Utils.inRange(newIndex) &&
-                Utils.isEmptyAndInBounds(piece,board[newIndex]) &&
+                Utils.isEmptyAndInBounds(piece,board[newIndex],attack) &&
                 Moves.checkDistance(index, newIndex, 1)
             );
         },
-        getMoves(board,index){
+        getMoves(board,index,attack=false){
             const baseValues = this.baseValues(index);
-            return Moves.get(board, index, baseValues, this.moveConditions);
+            return Moves.get(board, index, baseValues, this.moveConditions, attack);
         }
     } 
     static queen = {
-        getMoves(board,index){
+        getMoves(board,index,attack=false){
             return [
-                ...Moves.bishop.getMoves(board,index),
-                ...Moves.rook.getMoves(board,index)
+                ...Moves.bishop.getMoves(board,index,attack),
+                ...Moves.rook.getMoves(board,index,attack)
             ]
         }
     }
     static rook = {
-        getMoves(board,index){
+        getMoves(board,index,attack=false){
+            const continueMoves = attack ? Moves.continueAttackMovesLoop : Moves.continueMovesLoop;
             const moves = [];
             //loop left
             for(let i = index-1; i >= index-(index%8);i--){
-                if(!Moves.continueMovesLoop(i, index, board, moves))
+                if(!continueMoves(i, index, board, moves))
                     break;
             }
             //loop right
             for(let i = index + 1; i < index + (8 - index%8); i++){
-                if(!Moves.continueMovesLoop(i, index, board, moves))
+                if(!continueMoves(i, index, board, moves))
                     break;
             }
             //loop up
             for(let i = index + 8; i <= (64 - (8 - (index%8)) ); i+=8){
-                if(!Moves.continueMovesLoop(i, index, board, moves))
+                if(!continueMoves(i, index, board, moves))
                     break;
             }
             //loop down
             for(let i = index - 8; i >= 0+(index%8); i-=8){
-                if(!Moves.continueMovesLoop(i, index, board, moves))
+                if(!continueMoves(i, index, board, moves))
                     break;
             }
             return moves;
         }
     }
     static bishop = {
-        getMoves(board,index){
+        getMoves(board,index,attack=false){
+            const continueMoves = attack ? Moves.continueAttackMovesLoop : Moves.continueMovesLoop;
             const moves = [];
             //loop top left
             for(let i = index + 7; (i-7)%8 > 0 && i < 63; i+=7){
-                if(!Moves.continueMovesLoop(i, index, board, moves))
+                if(!continueMoves(i, index, board, moves))
                     break;
             }
             //loop top right
             for(let i = index + 9; (i-9)%8 < 7 && i < 64; i+=9){
-                if(!Moves.continueMovesLoop(i, index, board, moves))
+                if(!continueMoves(i, index, board, moves))
                     break;
             }
             //loop bottom left
             for(let i = index - 9; (i+9)%8 > 0 && i >= 0; i-=9){
-                if(!Moves.continueMovesLoop(i, index, board, moves))
+                if(!continueMoves(i, index, board, moves))
                     break;
             }
             //loop bottom right
             for(let i = index - 7; (i+7)%8 < 7 && i >= 0; i-=7){
-                if(!Moves.continueMovesLoop(i, index, board, moves))
+                if(!continueMoves(i, index, board, moves))
                     break;
             }
             return moves;
@@ -130,21 +137,21 @@ class Moves {
                 (index + 2) - 8   //right 2, left 1
             ]
         },
-        moveConditions(index, newIndex, board){
+        moveConditions(index, newIndex, board, attack){
             const piece = board[index]
             return (
                 Utils.inRange(newIndex) &&
-                Utils.isEmptyAndInBounds(piece,board[newIndex]) &&
+                Utils.isEmptyAndInBounds(piece,board[newIndex],attack) &&
                 Moves.checkDistance(index, newIndex, 2)
             );
         },
-        getMoves(board,index){
+        getMoves(board,index,attack=false){
             const baseValues = this.baseValues(index);
-            return Moves.get(board, index, baseValues, this.moveConditions);
+            return Moves.get(board, index, baseValues, this.moveConditions, attack);
         }
     }
     static pawn = {
-        getMoves(board,index){
+        getMoves(board,index,attack=false){
             const moves = [];
             const sign = Utils.isWhite(board[index]) ? 1 : -1;
             const twoForward = 16*sign;
@@ -154,19 +161,19 @@ class Moves {
             const row2or7 = 3.5 - 2.5*sign;
 
             //if pawn is on row 2/7, give option of two moves
-            if(Math.floor(index/8) == row2or7 && !board[index+twoForward]){
+            if(!attack && Math.floor(index/8) == row2or7 && !board[index+twoForward]){
                 moves.push(index+twoForward);
             }
             //one up if empty
-            if( index+oneForward < 64 && !board[index+oneForward] ){
+            if(!attack && index+oneForward < 64 && !board[index+oneForward] ){
                 moves.push(index+oneForward);
             }
-            //if isn't an A pawn, one up one left if enemy
-            if( index%8 < 7 && board[index+diagLeft] > 0 && !Utils.equalColors(board[index], board[index+diagLeft])){
+            //if isn't an A pawn, one up one left if enemy, or if getting attack squares
+            if( index%8 > 0 && ((board[index+diagLeft] > 0 && !Utils.equalColors(board[index], board[index+diagLeft]) || attack) )){
                 moves.push(index+diagLeft);
             }
-            //if isn't an H pawn, one up one right if enemy
-            if( index%8 > 1 && board[index+diagRight] > 0 && !Utils.equalColors(board[index], board[index+diagRight])){
+            //if isn't an H pawn, one up one right if enemy, or if getting attack squares
+            if( index%8 < 7 && ((board[index+diagRight] > 0 && !Utils.equalColors(board[index], board[index+diagRight])) || attack)){
                 moves.push(index+diagRight);
             }
         

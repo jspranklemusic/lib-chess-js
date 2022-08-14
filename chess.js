@@ -1,5 +1,5 @@
 import Moves from "./moves.js";
-import Board, { cols, rows, unicodeCharMap } from "./board.js"
+import Board, { cols, rows, pieces, unicodeCharMap } from "./board.js"
 import Utils from "./utils.js";
 
 window.Utils = Utils;
@@ -41,11 +41,21 @@ window.board = board;
 
 let move1 = -1;
 let move2 = -1;
+const boardElement = document.querySelector(".board");
+boardElement.id = "board";
+boardElement.onmouseup = e => {
+    boardElement.removeAttribute("grabbing")
+    // if(move1 >= 0){
+    //     move2 = parseInt(e.target.id);
+    //     board.move(move1, move2);
+    //     makeBoard(board);
+    // }
+}
 
 function makeBoard(board){
     move1 = -1;
     move2 = -1;
-    document.querySelector(".board").innerHTML = "";
+    boardElement.innerHTML = "";
     for(let j in board.current){
         const i = 63 - j;
         const square = board.current[i];
@@ -56,10 +66,10 @@ function makeBoard(board){
         const row = 8 - (((i - (i%8))+8)/8);
         const column = 8 - (1 + i%8);
 
-        if(row%2 && !(column%2)){
+        if(row%2 && (column%2)){
             space.classList.add("filled");
         }
-        if(!(row%2) && (column%2)){
+        if(!(row%2) && !(column%2)){
             space.classList.add("filled");
         }
         if(unicodeCharMap[square]){
@@ -68,20 +78,31 @@ function makeBoard(board){
             space.appendChild(piece);
         }
         document.querySelector(".board").appendChild(space);
-        space.addEventListener('click', e => {
+        space.onmousedown = e => {
+            boardElement.setAttribute("grabbing",true)
             document.querySelectorAll(".selected").forEach(item => item.classList.toggle("selected"))
             if(space.firstChild && move1 < 0){
                 space.classList.toggle("selected");
                 move1 = parseInt(space.id)
             }else if(move1 >= 0 && move2 < 0){
                 move2 = parseInt(space.id);
-                board.move(move1, move2);
+                const pawn = board.whiteToMove() ? pieces.P : pieces.p;
+                let promotion = null;
+                if(board.current[move1] == pawn){
+                    if(Utils.getRow(move2) == 0){
+                        promotion = pieces.q;
+                    }
+                    else if(Utils.getRow(move2) == 7){
+                        promotion = pieces.Q;
+                    }
+                }
+                board.move(move1, move2, promotion);
                 makeBoard(board);
             }else {
                 move1 = -1;
                 move2 = -1;
             }
-        })
+        }
     }
 }
 

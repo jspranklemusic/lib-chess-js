@@ -32,17 +32,23 @@ class Utils {
     }
 
     // returns true if a square is in bounds and empty/capturable
-    static isEmptyAndInBounds(oldSquare, newSquare){
+    static isEmptyAndInBounds(oldSquare, newSquare, attack){
         return (
             newSquare != undefined &&
             newSquare == 0 |
-            !this.equalColors(oldSquare, newSquare)
+            !this.equalColors(oldSquare, newSquare) |
+            !!attack
         );
     }
 
     // checks if two squares are the same
     static equalColors(oldSquare, newSquare) {
         return (this.isWhite(oldSquare) == this.isWhite(newSquare))
+    }
+
+    // prints coordinates pretty
+    static pretty(arr){
+        return arr.map(square=> Utils.numToAlpha(square))
     }
 }
 
