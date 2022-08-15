@@ -48,7 +48,7 @@ class Board {
     // manually keep track of kings to avoid searching the board for checkmate
     whiteKingPosition = -1; 
     blackKingPosition = -1;
-    // at the start of each turn, get all fo the current base moves for easier state checking
+    // at the start of each turn, get all fo the LEGAL moves and attacked squares for easier state checking
     currentAttackedSquares = [];
     currentLegalMoves = [];
     enPassantIndex = null;
@@ -121,10 +121,10 @@ class Board {
     }
     
     // get the total number of base moves to find check/stalemate/checkmate
-    getTotalBaseMoves(white=true){
+    getTotalBaseMoves(isWhite=true){
         const moves = [];
         this.current.forEach((piece,i) => {
-            if(piece > 0 && Utils.isWhite(piece) == white){
+            if(piece > 0 && Utils.isWhite(piece) == isWhite){
                 moves.push([i,this.pieceMoveFunctionMap[pieces[piece]](i)]);
             }
         })
@@ -142,7 +142,7 @@ class Board {
         return moves;
     }
 
-    // maybe come back and loop in reverse if black
+    // loops through enemy attacked squares to see if they include the king position
     isCheck(){
         const whiteToMove = this.whiteToMove();
         const kingPosition = whiteToMove ? this.whiteKingPosition : this.blackKingPosition;
@@ -157,12 +157,12 @@ class Board {
         }
         return false;
     }
+
     // check to see if kings moved from E1(4) or E8(60) by comparing current & default boards
     setKingsMoved(){
         if(!this.blackKingMoved && this.default[60] != this.current[60]){
             this.blackKingMoved = true;
-        }
-        else if(!this.whiteKingMoved && this.default[4] != this.current[4]){
+        }else if(!this.whiteKingMoved && this.default[4] != this.current[4]){
             this.whiteKingMoved = true;
         }
     }
@@ -222,7 +222,7 @@ class Board {
     }
 
     // after a completed legal move, set the game state/variables for the next turn, check game-ending conditions
-    setState(oldIndex, newIndex){
+    setState(){
         this.setRooksMoved();
         this.setKingsMoved();
         const whiteToMove = this.whiteToMove();
@@ -304,7 +304,7 @@ class Board {
         return this.currentLegalMoves.find(arr=>arr[0] == indexA)[1]?.includes(indexB);
     }
 
-    // this should not actually alter the state
+    // this tests if the move is valid
     tryMove(indexA,indexB){
         const move1 = this.current[indexA];
         const move2 = this.current[indexB];
