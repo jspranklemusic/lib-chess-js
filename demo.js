@@ -1,10 +1,5 @@
-import Moves from "./moves.js";
-import Board, { cols, rows, pieces, unicodeCharMap } from "./board.js"
+import Board, { pieces, unicodeCharMap } from "./board.js"
 import Utils from "./utils.js";
-
-window.Utils = Utils;
-window.Board = Board;
-window.Moves = Moves;
 
 // capital characters are WHITE, lower case are black
 /*
@@ -37,21 +32,14 @@ these will be stored in an array.
 
 
 const board = new Board();
-window.board = board;
 
 let move1 = -1;
 let move2 = -1;
+
 const boardElement = document.querySelector(".board");
 boardElement.id = "board";
-boardElement.onmouseup = e => {
-    boardElement.removeAttribute("grabbing")
-    // if(move1 >= 0){
-    //     move2 = parseInt(e.target.id);
-    //     board.move(move1, move2);
-    //     makeBoard(board);
-    // }
-}
 
+// a small UI to demo the chess-lib-js library
 function makeBoard(board){
     move1 = -1;
     move2 = -1;
@@ -107,6 +95,4 @@ function makeBoard(board){
 }
 
 makeBoard(board)
-
-window.makeBoard = makeBoard
 

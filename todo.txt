@@ -1,9 +1,0 @@
-things I need to add:
--checks
--checkmates
--stalemates
--castling (kingside and queenside)
--en passant
--promoting pawns
--50 move rule
--Draw by 3-move repetition

@@ -5,8 +5,6 @@ export const cols = ['A','B','C','D','E','F','G','H'];
 export const rows = ['1','2','3','4','5','6','7','8'];
 export const pieces = {};
 
-window.pieces = pieces;
-
 // construct 2-way hash map with letters and ascii values
 for(let i = 65; i <= 90; i++){
   pieces[i] = String.fromCharCode(i);
