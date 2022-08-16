@@ -2,7 +2,7 @@ import Utils from "./utils.js";
 import Board, { cols, rows, pieces } from "./board.js";
 
 // These all return the base moves without any special conditions (castle, check, en passant, etc.)q
-class Moves {
+class Moves { 
     static get(board, index, baseValues, moveConditions, attack){
         const moves = [];
         baseValues.forEach(newIndex=>{
@@ -156,8 +156,8 @@ class Moves {
             const sign = Utils.isWhite(board[index]) ? 1 : -1;
             const twoForward = 16*sign;
             const oneForward = 8*sign
-            const diagLeft = 7*sign;
-            const diagRight = 9*sign;
+            const diagLeft = sign ? 7 : -9;
+            const diagRight =sign ? 9 : -7;
             const row2or7 = 3.5 - 2.5*sign;
 
             //if pawn is on row 2/7, give option of two moves

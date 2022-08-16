@@ -1,6 +1,8 @@
 import Board, { pieces, unicodeCharMap } from "./board.js"
 import Utils from "./utils.js";
 
+window.Utils = Utils;
+
 // capital characters are WHITE, lower case are black
 /*
 P - white pawn
@@ -95,4 +97,6 @@ function makeBoard(board){
 }
 
 makeBoard(board)
+
+window.board = board;
 

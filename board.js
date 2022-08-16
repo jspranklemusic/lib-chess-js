@@ -273,7 +273,9 @@ class Board {
         const movesWithIndex = this.getTotalBaseMoves(this.whiteToMove());
         movesWithIndex.forEach(array=>{
             const legal = array[1].filter(move=>this.tryMove(array[0],move));
-            this.appendAuxiliaryMoves(array[0],legal)
+            console.log(array[0],legal,array[1])
+            this.appendAuxiliaryMoves(array[0],legal);
+            console.log(array[0],legal)
             if(legal.length){
                 moves.push([array[0],legal])
             }
@@ -337,18 +339,20 @@ class Board {
 
     // handles both setting (and reacting to) en passant   
     enPassant(indexA, indexB){
-        const pawn = this.whiteToMove() ? pieces.P : pieces.p;
-        const xOffset = this.whiteToMove() ? 8 : -8;
+        const whiteToMove = this.whiteToMove();
+        const pawn = whiteToMove ? pieces.P : pieces.p;
+        const xOffset = whiteToMove ? 8 : -8;
         if(this.current[indexA] == pawn){
-            if( Math.abs(indexB - indexA) == 16){
+            // OK, I think the en passant bug is here, I need to check if there's an enemy pawn (in bounds) that's one index away
+            if(Math.abs(indexB - indexA) == 16){
                 this.enPassantIndex = indexB;
                 return;
             }
             else if(indexB - this.enPassantIndex == xOffset){
                 this.current[this.enPassantIndex] = 0;
             }
-            this.enPassantIndex = null;
         }
+        this.enPassantIndex = null;
     }
 
     // after a legal castle, move the rooks beside the king
