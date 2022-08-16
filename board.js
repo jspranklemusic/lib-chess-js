@@ -273,9 +273,7 @@ class Board {
         const movesWithIndex = this.getTotalBaseMoves(this.whiteToMove());
         movesWithIndex.forEach(array=>{
             const legal = array[1].filter(move=>this.tryMove(array[0],move));
-            console.log(array[0],legal,array[1])
             this.appendAuxiliaryMoves(array[0],legal);
-            console.log(array[0],legal)
             if(legal.length){
                 moves.push([array[0],legal])
             }
@@ -334,11 +332,11 @@ class Board {
     setAuxiliaryPieces(indexA, indexB, promotion){
         this.moveRook(indexA, indexB);
         this.promotePawn(indexA, indexB, promotion);
-        this.enPassant(indexA, indexB);
+        this.setEnPassant(indexA, indexB);
     }
 
-    // handles both setting (and reacting to) en passant   
-    enPassant(indexA, indexB){
+    // handles both getting and setting en passant   
+    setEnPassant(indexA, indexB){
         const whiteToMove = this.whiteToMove();
         const pawn = whiteToMove ? pieces.P : pieces.p;
         const xOffset = whiteToMove ? 8 : -8;
@@ -348,6 +346,7 @@ class Board {
                 this.enPassantIndex = indexB;
                 return;
             }
+            // if the move is en passant, remove the enemy piece from the board
             else if(indexB - this.enPassantIndex == xOffset){
                 this.current[this.enPassantIndex] = 0;
             }
