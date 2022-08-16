@@ -54,6 +54,7 @@ class Board {
     enPassantIndex = null;
     move50counter = 0;
     gameover = false;
+    winner = "";
 
     constructor(){
         const board = new Uint8Array(64);
@@ -221,6 +222,12 @@ class Board {
         }
     }
 
+    // resign the position, make your opponent win
+    resign(isWhite){
+        this.gameover = "resigned";
+        this.winner = isWhite ? "black" : "white";
+    }
+
     // after a completed legal move, set the game state/variables for the next turn, check game-ending conditions
     setState(){
         this.setRooksMoved();
@@ -231,23 +238,22 @@ class Board {
         if(!this.currentLegalMoves.length){
             // find checkmate
             if(this.isCheck()){
-                alert("checkmate!");
-                this.gameover = true;
+                this.gameover = "checkmate"
             // find stalemate
             }else{
-                alert("stalemate");
-                this.gameover = true;
+                this.gameover = "stalemate";
             }
         }
         // find draw by 50 move
-        if(this.move50counter >= 50){
-            alert("draw by 50 move rule");
-            this.gameover = true;
+        else if(this.move50counter >= 50){
+            this.gameover = "fifty_move_rule";
         }
         // find draw by 3 move repetition
-        if(this.drawByRepetition()){
-            alert("draw by repetition");
-            this.gameover = true;
+        else if(this.drawByRepetition()){
+            this.gameover = "draw_by_repetition"
+        }
+        if(this.gameover){
+            console.log(this.gameover)
         }
     }
 
@@ -397,8 +403,8 @@ class Board {
         this.positions.push([...this.current]);
     }
 
-    // this is async so that a player can promote a pawn if available
-    async move(indexA, indexB, promotion = null){
+    // this takes a start square, end square, and (if promoting pawn) a promotion piece
+    move(indexA, indexB, promotion = null){
         if(this.gameover) return;
         if(this.validateBaseMove(indexA, indexB)){
             if(this.tryMove(indexA,indexB)){

@@ -5,19 +5,19 @@ window.Utils = Utils;
 
 // capital characters are WHITE, lower case are black
 /*
-P - white pawn
-N - white knight
-B - white bishop
-R - white Rook
-Q - white Queen
-K - white king
+- P: white pawn
+- N: white knight
+- B: white bishop
+- R: white Rook
+- Q: white Queen
+- K: white king
 
-p - black pawn
-n - black knight
-b - black bishop
-r - black rook
-q - black queen
-k - black king
+- p: black pawn
+- n: black knight
+- b: black bishop
+- r: black rook
+- q: black queen
+- k: black king
 
 these will be stored in an array.
 
