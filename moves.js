@@ -156,8 +156,8 @@ class Moves {
             const sign = Utils.isWhite(board[index]) ? 1 : -1;
             const twoForward = 16*sign;
             const oneForward = 8*sign
-            const diagLeft = sign ? 7 : -9;
-            const diagRight =sign ? 9 : -7;
+            const diagLeft = sign > 0 ? 7 : -9;
+            const diagRight = sign > 0 ? 9 : -7;
             const row2or7 = 3.5 - 2.5*sign;
 
             //if pawn is on row 2/7, give option of two moves
