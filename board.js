@@ -3,16 +3,33 @@ import Utils from "./utils.js";
 
 export const cols = ['A','B','C','D','E','F','G','H'];
 export const rows = ['1','2','3','4','5','6','7','8'];
-export const pieces = {};
 
-// construct 2-way hash map with letters and ascii values
-for(let i = 65; i <= 90; i++){
-  pieces[i] = String.fromCharCode(i);
-  pieces[String.fromCharCode(i)] = i;
-};
-for(let i = 97; i <= 122; i++){
-  pieces[i] = String.fromCharCode(i);
-  pieces[String.fromCharCode(i)] = i;
+// output of the 2-way hash map function - for type inference
+export const pieces = {
+    66: "B",
+    75: "K",
+    78: "N",
+    80: "P",
+    81: "Q",
+    82: "R",
+    98: "b",
+    107: "k",
+    110: "n",
+    112: "p",
+    113: "q",
+    114: "r",
+    B: 66,
+    K: 75,
+    N: 78,
+    P: 80,
+    Q: 81,
+    R: 82,
+    b: 98,
+    k: 107,
+    n: 110,
+    p: 112,
+    q: 113,
+    r: 114
 };
 
 // unicode actually has chess characters, this maps it to the ascii number
@@ -30,6 +47,7 @@ export const unicodeCharMap = {
    [pieces.n]:"\u265E",
    [pieces.p]:"\u265F",
 }
+
 
 class Board {
 
