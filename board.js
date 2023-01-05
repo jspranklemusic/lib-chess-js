@@ -48,7 +48,6 @@ export const unicodeCharMap = {
    [pieces.p]:"\u265F",
 }
 
-
 class Board {
 
      // an array of all of the previous positions, starting from #1
@@ -73,9 +72,13 @@ class Board {
     move50counter = 0;
     gameover = false;
     winner = "";
+    currentIndex = 0;
+    pgnMoves = [] // moves in algebraic notation
+    moves = [] // moves in index format
 
-    constructor(){
+    constructor(config={fen: null, pgn: null}){
         const board = new Uint8Array(64);
+        window.board = this;
         //make  pawns
         for(let i = 8; i < 16; i++){
             board[i] = pieces.P;
@@ -87,44 +90,50 @@ class Board {
             board[i] = 0;
         }
 
-        //make white pieces
-        board[0] = pieces.R;
-        board[7] = pieces.R;
-        board[1] = pieces.N;
-        board[6] = pieces.N;
-        board[2] = pieces.B;
-        board[5] = pieces.B;
-        board[4] = pieces.K;
-        board[3] = pieces.Q;
+        if (config.fen) {
 
-        this.whiteKingPosition = 4;
+        } else {
+             //make white pieces
+            board[0] = pieces.R;
+            board[7] = pieces.R;
+            board[1] = pieces.N;
+            board[6] = pieces.N;
+            board[2] = pieces.B;
+            board[5] = pieces.B;
+            board[4] = pieces.K;
+            board[3] = pieces.Q;
 
-        //make black pieces
-        board[0+56] = pieces.r;
-        board[7+56] = pieces.r;
-        board[1+56] = pieces.n;
-        board[6+56] = pieces.n;
-        board[2+56] = pieces.b;
-        board[5+56] = pieces.b;
-        board[4+56] = pieces.k;
-        board[3+56] = pieces.q;
+            this.whiteKingPosition = 4;
 
-        this.blackKingPosition = 4+56;
+            //make black pieces
+            board[0+56] = pieces.r;
+            board[7+56] = pieces.r;
+            board[1+56] = pieces.n;
+            board[6+56] = pieces.n;
+            board[2+56] = pieces.b;
+            board[5+56] = pieces.b;
+            board[4+56] = pieces.k;
+            board[3+56] = pieces.q;
+
+            this.blackKingPosition = 4+56;
+        }
+
+       
 
         // make map to automatically call correct function based on index
         this.pieceMoveFunctionMap = {
-            k: (index,attack=false)=> Moves.king.getMoves(board, index, attack),
-            K: (index,attack=false)=> Moves.king.getMoves(board, index, attack),
-            p: (index,attack=false)=> Moves.pawn.getMoves(board, index, attack),
-            P: (index,attack=false)=> Moves.pawn.getMoves(board, index, attack),
-            r: (index,attack=false)=> Moves.rook.getMoves(board, index, attack),
-            R: (index,attack=false)=> Moves.rook.getMoves(board, index, attack),
-            n: (index,attack=false)=> Moves.knight.getMoves(board, index, attack),
-            N: (index,attack=false)=> Moves.knight.getMoves(board, index, attack),
-            q: (index,attack=false)=> Moves.queen.getMoves(board, index, attack),
-            Q: (index,attack=false)=> Moves.queen.getMoves(board, index, attack),
-            b: (index,attack=false)=> Moves.bishop.getMoves(board, index, attack),
-            B: (index,attack=false)=> Moves.bishop.getMoves(board, index, attack),
+            k: (index,attack=false, position = null)=> Moves.king.getMoves(position ? position : board, index, attack),
+            K: (index,attack=false, position = null)=> Moves.king.getMoves(position ? position : board, index, attack),
+            p: (index,attack=false, position = null)=> Moves.pawn.getMoves(position ? position : board, index, attack),
+            P: (index,attack=false, position = null)=> Moves.pawn.getMoves(position ? position : board, index, attack),
+            r: (index,attack=false, position = null)=> Moves.rook.getMoves(position ? position : board, index, attack),
+            R: (index,attack=false, position = null)=> Moves.rook.getMoves(position ? position : board, index, attack),
+            n: (index,attack=false, position = null)=> Moves.knight.getMoves(position ? position : board, index, attack),
+            N: (index,attack=false, position = null)=> Moves.knight.getMoves(position ? position : board, index, attack),
+            q: (index,attack=false, position = null)=> Moves.queen.getMoves(position ? position : board, index, attack),
+            Q: (index,attack=false, position = null)=> Moves.queen.getMoves(position ? position : board, index, attack),
+            b: (index,attack=false, position = null)=> Moves.bishop.getMoves(position ? position : board, index, attack),
+            B: (index,attack=false, position = null)=> Moves.bishop.getMoves(position ? position : board, index, attack),
         };
 
            // the 'this.current' variable is the current board position
@@ -132,6 +141,23 @@ class Board {
            this.default = [...board];
            this.positions.push([...board]);
            this.setState();
+
+           if (config.pgn) {
+            this.parseGameFromPGN(config.pgn)
+           }
+    }
+    
+    // parse game from PGN
+    parseGameFromPGN(pgn) {
+        // pgn can be either array of move strings, or a string from a proper PGN file
+        if (Array.isArray(pgn)) {
+            pgn.forEach(strMove => {
+                const indexMove = this.indexMoveFromPGN(strMove);
+                this.move(...indexMove)
+            })
+        } else {
+            console.log(pgn)
+        }
     }
 
     // checks if white to move
@@ -140,11 +166,12 @@ class Board {
     }
     
     // get the total number of base moves to find check/stalemate/checkmate
-    getTotalBaseMoves(isWhite=true){
+    getTotalBaseMoves(isWhite=true, positionIndex = -1){
         const moves = [];
-        this.current.forEach((piece,i) => {
+        const position = positionIndex < 0 ? this.current : this.positions[positionIndex];
+        position.forEach((piece,i) => {
             if(piece > 0 && Utils.isWhite(piece) == isWhite){
-                moves.push([i,this.pieceMoveFunctionMap[pieces[piece]](i)]);
+                moves.push([i,this.pieceMoveFunctionMap[pieces[piece]](i, false, position)]);
             }
         })
         return moves;
@@ -240,6 +267,42 @@ class Board {
         }
     }
 
+    // display the board
+
+    prettyPrint(board){
+        let printStr = ''
+        for (let j = 0; j < 64; j++) {
+            let i = 63 - j;
+            printStr += ' '
+            if (unicodeCharMap[board[i]]) {
+                printStr += unicodeCharMap[board[i]]
+            } else {
+                const col = Utils.getCol(i);
+                const row = Utils.getRow(i);
+                console.log({col, row , i})
+                if ((col%2)) {
+                    if (!(row%2)) {
+                        printStr += '#'
+
+                    } else {
+                        printStr += '_'
+                    }
+                } else {
+                    if (!(row%2)) {
+                        printStr += '_'
+
+                    } else {
+                        printStr += '#'
+                    }
+                }
+            }
+            if (!(i%8)) {
+                printStr += '\n';
+            }
+        }
+        console.log(printStr);
+    }
+
     // resign the position, make your opponent win
     resign(isWhite){
         this.gameover = "resigned";
@@ -252,7 +315,7 @@ class Board {
         this.setKingsMoved();
         const whiteToMove = this.whiteToMove();
         this.currentAttackedSquares = this.getTotalAttackedSquares(!whiteToMove);
-        this.currentLegalMoves = this.getLegalMoves(whiteToMove);
+        this.currentLegalMoves = this.getLegalMoves();
         if(!this.currentLegalMoves.length){
             // find checkmate
             if(this.isCheck()){
@@ -272,18 +335,22 @@ class Board {
         }
         if(this.gameover){
             console.log(this.gameover)
-        }
+        };
+        this.currentIndex = this.positions.length - 1;
     }
 
     // get additional, non-base legal moves such as castling and en passant
-    appendAuxiliaryMoves(index,array){
+    appendAuxiliaryMoves(index,array,whiteToMove = null){
+        if (whiteToMove == null) {
+            whiteToMove = this.whiteToMove();
+        }
         // castling
         if(index == this.whiteKingPosition | index == this.blackKingPosition){
             array.push(...this.getCastleMoves())
         }
         // en passant
-        const pawn = this.whiteToMove() ? pieces.P : pieces.p;
-        const offset = this.whiteToMove() ? 8 : -8;
+        const pawn = whiteToMove ? pieces.P : pieces.p;
+        const offset = whiteToMove ? 8 : -8;
         if(this.enPassantIndex && this.current[index] == pawn){
             if(index + 1 == this.enPassantIndex | index - 1 == this.enPassantIndex){
                 array.push(this.enPassantIndex + offset);
@@ -292,12 +359,18 @@ class Board {
     }
 
     // very slow - will need to do something else eventually when I write an AI. this also appends auxiliary moves
-    getLegalMoves(){
+    getLegalMoves(positionIndex = -1, whiteToMove = null){
         const moves = [];
-        const movesWithIndex = this.getTotalBaseMoves(this.whiteToMove());
+        if (whiteToMove == null) {
+            whiteToMove = this.whiteToMove();
+        }
+        const movesWithIndex = this.getTotalBaseMoves(whiteToMove, positionIndex);
+        if (positionIndex >= 0) {
+            console.log({movesWithIndex})
+        }
         movesWithIndex.forEach(array=>{
-            const legal = array[1].filter(move=>this.tryMove(array[0],move));
-            this.appendAuxiliaryMoves(array[0],legal);
+            const legal = array[1].filter(move=>this.tryMove(array[0], move, positionIndex));
+            this.appendAuxiliaryMoves(array[0], legal, whiteToMove);
             if(legal.length){
                 moves.push([array[0],legal])
             }
@@ -315,6 +388,7 @@ class Board {
 
     // make sure that the basic move is legal for the piece
     validateBaseMove(indexA, indexB){
+
         const whiteToMove = this.whiteToMove();
         const piece = this.current[indexA];
         if(!piece){
@@ -329,11 +403,12 @@ class Board {
     }
 
     // this tests if the move is valid
-    tryMove(indexA,indexB){
-        const move1 = this.current[indexA];
-        const move2 = this.current[indexB];
-        this.current[indexB] = this.current[indexA];
-        this.current[indexA] = 0;
+    tryMove(indexA, indexB, posIndex = - 1){
+        const position = posIndex < 0 ? this.current : this.positions[posIndex];
+        const move1 = position[indexA];
+        const move2 = position[indexB];
+        position[indexB] = position[indexA];
+        position[indexA] = 0;
         if(move1 == pieces.K){
             this.whiteKingPosition = indexB
         }
@@ -341,8 +416,8 @@ class Board {
             this.blackKingPosition = indexB
         }
         const stateValid = this.validateState();
-        this.current[indexA] = move1;
-        this.current[indexB] = move2;
+        position[indexA] = move1;
+        position[indexB] = move2;
         if(move1 == pieces.K){
             this.whiteKingPosition = indexA
         }
@@ -421,16 +496,204 @@ class Board {
         this.positions.push([...this.current]);
     }
 
+    isCheckmate() {
+        return this.currentLegalMoves.length == 0 && this.isCheck()
+    }
+
+    wasEnPassantCapture(index, prev, curr){
+        return (
+            (prev[index - 1] && !curr[index - 1]) ||
+            (prev[index + 1] && !curr[index + 1])
+        )
+    }
+
+    appendPGN(indexA, indexB) {
+        const [prev, curr] = this.positions.slice(-2);
+        const oldMove = prev[indexA];
+        const oldMoveNewSqr = prev[indexB];
+        const newMove = curr[indexB];
+        const newSquareAlpha = Utils.numToAlpha(indexB).toLowerCase();
+        const oldSquareAlpha = Utils.numToAlpha(indexA).toLowerCase();
+        const isWhite = !(this.positions.length%2)
+        
+        let pgnMove = (pieces[oldMove] + '').toUpperCase();
+
+        // check for conflicts, clarify by adding row number or column name
+        const prevLegalMoves = this.getLegalMoves(this.positions.length - 2, isWhite);
+        const piecesCanMoveToSquare = [];
+        prevLegalMoves.forEach(move => {
+            const moves =  move.slice(1).flat()
+            if (moves.includes(indexB)) {
+                piecesCanMoveToSquare.push(move[0])
+            }
+        })
+        if (piecesCanMoveToSquare.length > 1) {
+            for (let i = 0; i < piecesCanMoveToSquare.length; i++) {
+                const index = piecesCanMoveToSquare[i];
+                if (prev[index] == prev[indexA] && index != indexA) {
+                    pgnMove += oldSquareAlpha
+                    break;
+                }
+            }
+        }
+
+        // capturing or en passant
+        if (pieces[oldMoveNewSqr] || this.wasEnPassantCapture(indexA, prev, curr)) {
+            if (pgnMove[0] == 'P') {
+                pgnMove += oldSquareAlpha[0];
+            } 
+            pgnMove += 'x';
+        }
+
+        pgnMove += newSquareAlpha;
+        // if castling
+        if (pgnMove[0] == 'K') {
+            // do O-O
+            if (indexB == indexA + 2) {
+                pgnMove = 'O-O'
+            } else if (indexB == indexA - 2) {
+                pgnMove = 'O-O-O'
+            }
+         } 
+        //  pawn moves
+        if (pgnMove[0] == 'P') {
+            pgnMove = pgnMove.slice(1)
+            const row = Utils.getRow(indexB);
+            // promotion
+            if (row == 7 || row == 0) {
+                pgnMove += '=' + pieces[newMove].toUpperCase();
+            }
+        }
+        // checkmate
+        if (this.isCheckmate() ) {
+            pgnMove += '#'
+        } 
+        // check
+        else if (this.isCheck()) {
+            pgnMove += '+'
+        }
+        
+        this.pgnMoves.push(pgnMove);
+    }
+
+    indexMoveFromPGN(move = 'e4') {
+        // handle error if not valid move
+        const moveMatches =  [...move.matchAll(/[a-h][1-8]/g)];
+        let move2Match = null;
+        if (moveMatches.length == 1) {
+            move2Match = move.match(/[a-h][1-8]/g);
+        } else {
+            const returnMoves = [
+                Utils.alphaToNum(moveMatches[0][0].toUpperCase()), 
+                Utils.alphaToNum(moveMatches[1][0].toUpperCase())
+            ]
+            const promotionMatch = move.match(/\=[QRNB]/);
+            if (promotionMatch) {
+                returnMoves.push(promotionMatch[0])
+            }
+            return returnMoves;
+        }
+        if (!move2Match) {
+            console.error('Not a valid PGN move.')
+            return
+        }
+
+        const endIndex = Utils.alphaToNum(move2Match[0].toUpperCase());
+        let piece  = move[0]
+        // pawn move
+        if (piece.match(/[a-h]/)) {
+            piece = 'P'
+        } 
+        if (this.whiteToMove()) {
+            piece = piece.toUpperCase()
+        } else {
+            piece = piece.toLowerCase();
+        }
+        let pieceNum = pieces[piece]
+        let startingMoves = []
+        const map = {}
+        this.currentLegalMoves.forEach(move => {
+            map[move[0]] = move.slice(1).flat()
+        })
+        
+        for (let i = 0; i < this.current.length; i++) {
+            const pieceCode = this.current[i];
+            if (pieceCode == pieceNum) {
+                if (map[i].includes(endIndex)) {
+                    startingMoves.push(i)
+                }
+            }
+        }
+        // let's say multiple Knights could move to e2
+        if (startingMoves.length > 1) {
+            // try to column letter, 
+            if (move.slice(1,3).match(/[a-h][a-h]/)) {
+                let columnsPos = startingMoves.map(i => cols[Utils.getCol(i)].toLowerCase());
+                let index = columnsPos.indexOf(move[1])
+                startingMoves = [startingMoves[index]]
+                
+            // or try to get row number
+            } else if (move[1].match(/[1-8]/)) {
+                let rowsPos = startingMoves.map(i => rows[Utils.getRow(i)])
+                let index = rowsPos.indexOf(move[1]);
+                  startingMoves = [startingMoves[index]]
+            } else {
+                startingMoves = [startingMoves[0]]
+            }
+        }
+        if (!startingMoves[0] && startingMoves[0] != 0) {
+            return null
+        }
+        const returnMoves = [startingMoves[0], endIndex];
+        const promotionMatch = move.match(/\=[QRNB]/);
+        if (promotionMatch) {
+            returnMoves.push(promotionMatch[0])
+        }
+        return returnMoves
+
+    }
+
+    generatePGNString() {
+        let str = '';
+        let inc = 0;
+        this.pgnMoves.forEach((move, i) => {
+            if (!(i%2)) {
+                inc++;
+                str += inc + '. '
+                str += move + ' '
+
+            } else {
+                str += move + ' \n'
+            }
+        })
+        return str;
+    }
+
+    appendMove(indexA, indexB, promotion) {
+        const move = [indexA, indexB]
+        if (promotion) {
+            move.push(promotion)
+        }
+        this.moves.push(move);
+    }
+
     // this takes a start square, end square, and (if promoting pawn) a promotion piece
-    move(indexA, indexB, promotion = null){
-        if(this.gameover) return;
+    move(indexA, indexB, promotion){
+        if(this.gameover) return false;
+        if(this.currentIndex < this.positions.length - 1) return false;
         if(this.validateBaseMove(indexA, indexB)){
             if(this.tryMove(indexA,indexB)){
                 this.setAuxiliaryPieces(indexA, indexB, promotion);
                 this.setMove50Counter(indexA, indexB);
                 this.setPosition(indexA,indexB);
                 this.setState(indexA, indexB);
+                this.appendPGN(indexA, indexB);
+                this.appendMove(indexA, indexB, promotion);
+            } else {
+                return false;
             }
+        } else {
+            return false;
         }
         return this.current;
     }
