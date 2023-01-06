@@ -161,7 +161,7 @@ class Moves {
             const row2or7 = 3.5 - 2.5*sign;
 
             //if pawn is on row 2/7, give option of two moves
-            if(!attack && Math.floor(index/8) == row2or7 && !board[index+twoForward]){
+            if(!attack && Math.floor(index/8) == row2or7 && !board[index+twoForward] && !board[index+oneForward]){
                 moves.push(index+twoForward);
             }
             //one up if empty
@@ -183,8 +183,3 @@ class Moves {
 }
 
 export default Moves;
-
-
-
-
-
